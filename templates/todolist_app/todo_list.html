@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todo List</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: rgba(0, 205, 255, 0.09);
+    }
+    #todo-list {
+        max-width: 400px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    #todo-list h2 {
+        margin-top: 0;
+        color: #333;
+        text-align: center;
+    }
+    ul {
+        list-style-type: none;
+        padding: 0;
+    }
+    li {
+        margin-bottom: 20px; /* 간격 늘리기 */
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column; /* 내용을 위 아래로 정렬 */
+        align-items: center; /* 가운데 정렬 */
+        cursor: pointer;
+    }
+    li:last-child {
+        border-bottom: none;
+    }
+    .completed {
+        color: #888;
+    }
+    input[type="checkbox"] {
+        margin-bottom: 5px; /* 체크박스와 제목 간격 조정 */
+    }
+    input[type="text"],
+    textarea {
+        width: calc(100% - 20px); /* 입력 필드 너비 조정 */
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        resize: none; /* 크기 조정 비활성화 */
+        outline: none;
+        margin-top: 15px;
+    }
+    textarea {
+        height: 100px; /* 텍스트 영역 높이 */
+    }
+    button {
+        background-color: #ff0000; /* 삭제 버튼의 배경색을 빨강색으로 설정 */
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        padding: 8px 10px; /* 삭제 버튼의 내부 패딩 설정 */
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 15px;
+    }
+    button:hover {
+        background-color: #d60000;
+    }
+    button[type="submit"] {
+        background-color: #00cdff; /* 추가 버튼의 배경색을 하늘색으로 설정 */
+        color: #fff;
+        margin-top: 10px;
+    }
+    button[type="submit"]:hover {
+        background-color: #45a049;
+    }
+
+</style>
+</head>
+<body>
+<div id="todo-list">
+    <h2>오늘의 할 일</h2>
+    <ul id="list-items">
+        {% for item in todo_items %}
+            <li class="{% if item.completed %}completed{% endif %}" data-id="{{ item.id }}" onclick="showDescription('{{ item.id }}', '{{ item.text }}', '{{ item.description }}')">
+                <input type="checkbox" {% if item.completed %}checked{% endif %} onclick="toggleComplete(this, {{ item.id }})">
+                <span class="item-text">{{ item.text }}</span>
+                <span class="item-description" style="display: none;">{{ item.description }}</span>
+                <button class="delete-button" onclick="deleteItem(this, {{ item.id }})">삭제</button>
+            </li>
+        {% endfor %}
+    </ul>
+    <form id="add-item-form" method="post" action="{% url 'add_item' %}">
+        {% csrf_token %}
+        <input type="text" name="new_item" id="new-item" placeholder="할 일을 입력하세요...">
+        <textarea name="new_description" id="new-description" placeholder="할 일에 대한 설명을 입력하세요..."></textarea>
+        <button type="submit">추가</button>
+    </form>
+    <div id="description-container" style="display: none;">
+        <h3 id="description-title"></h3>
+        <p id="description-content"></p>
+    </div>
+</div>
+
+<script>
+    function toggleComplete(checkbox, itemId) {
+        const completedMessage = checkbox.checked ? "completed" : "uncompleted"; 
+        fetch(`/toggle_complete/${itemId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            }
+            throw new Error('Network response was not ok.');
+        })
+        .then(data => {
+            console.log(data);
+            alert(completedMessage); // 체크 상태에 따른 메시지 띄우기
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+            alert('요청 처리 중 문제가 발생했습니다.');
+        });
+    }
+
+    function deleteItem(buttonElement, itemId) {
+    fetch(`/delete_item/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.text();
+        }
+        throw new Error('Network response was not ok.');
+    })
+    .then(data => {
+        console.log(data);
+        buttonElement.parentElement.remove();
+    })
+    .catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+        alert('요청 처리 중 문제가 발생했습니다.');
+    });
+}
+
+function showDescription(itemId, itemText, itemDescription) {
+    if (event.target.classList.contains('delete-button')) {
+        return;
+    }
+
+    const descriptionContainer = document.getElementById('description-container');
+    const descriptionTitle = document.getElementById('description-title');
+    const descriptionContent = document.getElementById('description-content');
+
+    descriptionTitle.textContent = itemText;
+    descriptionContent.textContent = itemDescription;
+    descriptionContainer.style.display = 'block';
+}
+
+</script>
+</body>
+</html>
